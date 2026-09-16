@@ -1,76 +1,70 @@
 import sqlite3
 import matplotlib.pyplot as plt
+import numpy as np
 
 connection = sqlite3.connect("token_tracker.db")
 cursor = connection.cursor()
 
-cursor.execute("SELECT employee_name, cost FROM usage_log")
+cursor.execute("SELECT employee_name, provider, cost FROM usage_log WHERE id BETWEEN 99 AND 118 ORDER BY id")
 rows = cursor.fetchall()
-
 connection.close()
 
-rows.sort(key=lambda row: row[1])
+claude_costs = {}
+gemini_costs = {}
 
-names = []
-costs = []
+for name, provider, cost in rows:
+    if provider == "Claude":
+        claude_costs[name] = cost
+    elif provider == "Gemini":
+        gemini_costs[name] = cost
 
-for row in rows:
-    names.append(row[0])
-    costs.append(row[1])
+names = sorted(set(list(claude_costs.keys()) + list(gemini_costs.keys())),
+               key=lambda n: claude_costs.get(n, 0), reverse=True)
 
-total_cost = sum(costs)
-max_cost = max(costs)
+claude_values = [claude_costs.get(n, 0) for n in names]
+gemini_values = [gemini_costs.get(n, 0) for n in names]
 
-# Highlight only the top spender, everyone else stays neutral gray
-colors = []
-for cost in costs:
-    if cost == max_cost:
-        colors.append("#D62839")
-    else:
-        colors.append("#D9D9D9")
+y = np.arange(len(names))
+height = 0.35
 
 plt.style.use("default")
 plt.rcParams["font.family"] = "sans-serif"
 
-fig, ax = plt.subplots(figsize=(11, 7.5))
+fig, ax = plt.subplots(figsize=(11, 8))
 fig.patch.set_facecolor("white")
 ax.set_facecolor("white")
 
-bars = ax.barh(names, costs, color=colors, height=0.55)
+bars1 = ax.barh(y + height/2, claude_values, height, color="#2B2D42", label="Claude")
+bars2 = ax.barh(y - height/2, gemini_values, height, color="#3CA6A6", label="Gemini")
 
-for bar, cost in zip(bars, costs):
-    width = bar.get_width()
-    percentage = (cost / total_cost) * 100
-    label = "$" + str(round(cost, 4)) + "   " + str(round(percentage, 1)) + "%"
-    text_color = "#D62839" if cost == max_cost else "#666666"
-    weight = "bold" if cost == max_cost else "normal"
-    ax.text(
-        width + (max_cost * 0.02),
-        bar.get_y() + bar.get_height() / 2,
-        label,
-        va="center",
-        fontsize=11,
-        color=text_color,
-        fontweight=weight
-    )
+max_val = max(claude_values + gemini_values)
 
-fig.text(0.06, 0.96, "Who's Spending the Most?", fontsize=24, fontweight="bold", color="#1a1a1a")
-fig.text(0.06, 0.925, "Token API cost by employee, this batch", fontsize=12, color="#888888")
+for bar, val in zip(bars1, claude_values):
+    if val > 0:
+        ax.text(bar.get_width() + max_val*0.02, bar.get_y() + bar.get_height()/2,
+                "${:.4f}".format(val), va="center", fontsize=9, color="#2B2D42", fontweight="bold")
 
-ax.set_xlabel("")
-ax.set_ylabel("")
+for bar, val in zip(bars2, gemini_values):
+    if val > 0:
+        ax.text(bar.get_width() + max_val*0.02, bar.get_y() + bar.get_height()/2,
+                "${:.6f}".format(val), va="center", fontsize=9, color="#3CA6A6", fontweight="bold")
+
+ax.set_yticks(y)
+ax.set_yticklabels(names, fontsize=12, color="#1a1a1a")
+ax.invert_yaxis()
+
+fig.text(0.06, 0.97, "Claude vs Gemini: Cost per Employee", fontsize=20, fontweight="bold", color="#1a1a1a")
+fig.text(0.06, 0.945, "Same 10 employees, same questions, two providers, both on paid tier", fontsize=11, color="#888888")
 
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ax.spines["left"].set_visible(False)
 ax.spines["bottom"].set_visible(False)
-
-ax.tick_params(axis="y", labelsize=13, colors="#333333", length=0)
 ax.tick_params(axis="x", labelsize=0, length=0)
+ax.set_xlim(0, max_val * 1.4)
 
-ax.set_xlim(0, max_cost * 1.4)
-ax.grid(False)
+ax.legend(loc="lower right", frameon=False, fontsize=11)
 
-plt.subplots_adjust(top=0.87, left=0.12, right=0.95, bottom=0.05)
+plt.subplots_adjust(top=0.90, left=0.15, right=0.95, bottom=0.03)
 plt.savefig("cost_chart.png", dpi=200, facecolor="white")
 print("Chart saved as cost_chart.png")
