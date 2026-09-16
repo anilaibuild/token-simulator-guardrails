@@ -2,7 +2,7 @@
 
 A working pipeline that tracks real Claude vs. Gemini token costs, and extends that with a Google Model Armor guardrail layer that blocks risky prompts (PII, jailbreak attempts) before they ever reach an external AI provider.
 
-Full writeup: *[What Almost Leaked: Building a Guardrail for Shadow AI](#)* ← add your published post link here
+Full writeup: [What Almost Leaked: Building a Guardrail for Shadow AI](https://www.linkedin.com/pulse/what-almost-leaked-building-guardrail-shadow-ai-anil-kumar-papisetty-up8xc/)
 
 ## What this does
 
